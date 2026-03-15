@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Диаграмма контекста - Онлайн-кредитование (Target State)
+
+Person(client, "Клиент", "Физическое лицо, заявитель на кредит")
+Person(manager, "Менеджер отделения", "Фронт-офис, работа с клиентами")
+Person_Ext(bki, "Бюро кредитных историй", "Внешняя система, REST API")
+Person_Ext(telecom, "Телеком-оператор", "СМС-шлюз")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+    System(website, "Сайт банка", "PHP, React.js", "Маркетинг и подача заявок новыми клиентами")
+    System(internetBank, "Интернет-банк", "ASP.NET MVC 4.5, MS SQL", "Онлайн-банкинг для существующих клиентов")
+    System(callCenter, "Система кол-центра", "Java Spring Boot, React, PostgreSQL", "Обработка обращений")
+    
+    System_Boundary(creditSystems, "Кредитные системы") {
+        System(creditConveyor, "Кредитный конвейер", "Camunda, Oracle, Java", "Обработка заявок на кредиты")
+        System(scoring, "Система скоринга", "Python Flask, PostgreSQL", "Расчёт кредитного рейтинга")
+        System(preApproval, "Сервис предодобренных предложений", "Java Spring Boot, PostgreSQL", "Предрасчёт лимитов для клиентов")
+    }
+    
+    System(abs, "АБС", "Delphi, Oracle, PL/SQL", "Учёт операций, бухгалтерия, счета")
+    System(backOffice, "Рабочее место бэк-офиса", "АБС Клиент", "Обработка заявок кредитным отделом")
+}
+
+Rel(client, website, "HTTPS", "Подача заявки [UC-03]")
+Rel(client, internetBank, "HTTPS", "Просмотр и подача заявки [UC-01, UC-02]")
+Rel(client, manager, "Визит в отделение", "Продолжение заявки [UC-06]")
+
+Rel(website, preApproval, "REST API", "Запрос условий для нового клиента")
+Rel(internetBank, preApproval, "REST API", "Получение предодобренных предложений [UC-01]")
+Rel(internetBank, creditConveyor, "REST API", "Подача заявки [UC-02]")
+Rel(website, creditConveyor, "REST API", "Подача заявки [UC-03]")
+
+Rel(creditConveyor, scoring, "REST API", "Запрос скоринга [UC-04]")
+Rel(scoring, bki, "REST API", "Получение данных БКИ")
+Rel(scoring, abs, "REST API", "Получение данных клиента")
+Rel(preApproval, scoring, "Асинхронно", "Ночной предрасчёт [NFR-04]")
+
+Rel(creditConveyor, abs, "REST API", "Зачисление средств при одобрении")
+Rel(creditConveyor, telecom, "SMTP/HTTP", "СМС-уведомления [UC-07]")
+Rel(backOffice, creditConveyor, "Работа", "Обработка заявок [UC-08]")
+Rel(manager, creditConveyor, "Доступ", "Просмотр заявки клиента [UC-06]")
+@enduml

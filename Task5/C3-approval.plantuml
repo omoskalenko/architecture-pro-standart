@@ -1,0 +1,46 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Диаграмма компонентов - Сервис предодобренных предложений
+
+Person(client, "Клиент", "Через Интернет-банк или Сайт")
+
+Container_Boundary(preApprovalService, "Сервис предодобренных предложений (Java Spring Boot)") {
+    Component(controller, "PreApprovalController", "Spring REST Controller", "Обработка HTTP-запросов [UC-01]")
+    Component(service, "PreApprovalService", "Spring Service", "Бизнес-логика предрасчёта")
+    Component(repository, "PreApprovalRepository", "Spring Data JPA", "Доступ к данным предложений")
+    ComponentDb(database, "PostgreSQL DB", "PostgreSQL", "Предодобренные лимиты, сроки действия")
+    Component(scheduler, "NightBatchScheduler", "Spring Scheduler", "Ночной запуск предрасчётов [NFR-04]")
+    Component(scoringClient, "ScoringClient", "RestTemplate + Circuit Breaker", "Вызовы к системе скоринга")
+    Component(absClient, "ABSClient", "RestTemplate + Circuit Breaker", "Вызовы к АБС за данными клиента")
+    Component(cache, "Offer Cache", "Redis", "Кэширование предложений для быстрого доступа")
+}
+
+System_Ext(internetBank, "Интернет-банк", "ASP.NET MVC 4.5", "Канал для существующих клиентов")
+System_Ext(website, "Сайт банка", "PHP, React.js", "Канал для новых клиентов")
+System_Ext(scoring, "Система скоринга", "Python Flask, PostgreSQL", "Расчёт рейтинга")
+System_Ext(abs, "АБС", "Delphi, Oracle", "Данные о клиентах и счетах")
+
+Rel(client, internetBank, "HTTPS", "GET /pre-approved-offers")
+Rel(client, website, "HTTPS", "POST /credit-calculation")
+Rel(internetBank, controller, "REST API", "Запрос предложений")
+Rel(website, controller, "REST API", "Расчёт условий")
+
+Rel(controller, cache, "Чтение", "Быстрый ответ [NFR-11]")
+Rel(controller, service, "Вызов", "Обработка запроса")
+Rel(service, repository, "JPA", "Сохранение/чтение предложений")
+Rel(repository, database, "SQL", "Чтение/Запись")
+
+Rel(scheduler, scoringClient, "Вызов", "Пакетный запрос скоринга")
+Rel(scoringClient, scoring, "REST API", "Массовый расчёт рейтингов")
+Rel(scheduler, absClient, "Вызов", "Получение данных клиентов")
+Rel(absClient, abs, "REST API", "Данные о счетах и истории")
+
+Rel(service, cache, "Запись", "Обновление кэша предложений")
+
+UpdateRelStyle(client, internetBank, $textColor="#0066CC", $lineColor="#0066CC")
+UpdateRelStyle(scheduler, scoringClient, $textColor="#009900", $lineColor="#009900", $text="Ночной батч\n02:00-05:00 МСК")
+UpdateRelStyle(controller, cache, $textColor="#FF6600", $lineColor="#FF6600", $text="< 50 мс")
+
+UpdateElementStyle(cache, $bgColor="#FFFF99")
+UpdateElementStyle(scheduler, $bgColor="#90EE90")
