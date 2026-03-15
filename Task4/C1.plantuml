@@ -1,0 +1,27 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Диаграмма контекста - Интеграция кол-центра с сервисом ставок
+
+Person_Ext(partnerCC, "Партнёрский кол-центр", "Внешняя система, 100 операторов")
+Person(operator, "Оператор кол-центра банка", "200 операторов, внутренняя система")
+Person(backOffice, "Менеджер бэк-офиса", "Управление депозитных продуктов, 50 чел.")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+    System(callCenter, "Система кол-центра", "Java Spring Boot, React, PostgreSQL", "CRM и обработка обращений")
+    System(rateService, "Сервис ставок", "Python Flask, PostgreSQL", "Единый источник истины по ставкам")
+    System(abs, "АБС", "Delphi, Oracle", "Учёт операций (исторические данные)")
+    System(sftpServer, "SFTP-сервер банка", "Linux, OpenSSH", "Обмен файлами с партнёрами")
+}
+
+System_Ext(partnerSystem, "Система партнёра", "Внешняя платформа", "Только файловый обмен")
+
+Rel(operator, callCenter, "Работает в", "Просмотр ставок [UC-01]")
+Rel(backOffice, rateService, "Обновляет", "Изменение ставок [UC-04]")
+Rel(callCenter, rateService, "REST API", "Получение актуальных ставок [NFR-01]")
+Rel(rateService, sftpServer, "Выгрузка файла", "Автоматическая генерация [UC-03, UC-05]")
+Rel(sftpServer, partnerSystem, "SFTP + PGP", "Передача файла [UC-02, NFR-04]")
+Rel(partnerCC, partnerSystem, "Работает в", "Офлайн-консультирование [UC-06]")
+Rel(rateService, abs, "Чтение", "Исторические данные для аналитики")
+
+@enduml
