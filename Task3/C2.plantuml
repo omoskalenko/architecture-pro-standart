@@ -1,0 +1,61 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров - Детализация Интернет-банка и АБС
+
+Person(client, "Клиент", "Физическое лицо")
+
+System_Boundary(internetBankBoundary, "Интернет-банк") {
+    Container(ibUI, "Веб-интерфейс", "ASP.NET MVC 4.5, Razor, jQuery", "Предоставление UI клиенту [UC-01, UC-02]")
+    Container(ibAPI, "Контроллеры API", ".NET Framework 4.5", "Обработка HTTP-запросов")
+    ContainerDb(ibDB, "База данных", "MS SQL", "Пользовательские данные, сессии")
+    Container(ibCache, "Кэш справочников", "Redis", "Кэширование ставок и справочников [NFR-02]")
+    Container(ibSMS, "Модуль СМС-подтверждения", ".NET Framework 4.5", "Генерация и проверка кодов [UC-02]")
+}
+
+System_Boundary(apiGatewayBoundary, "API Gateway") {
+    Container(gwRoute, "Маршрутизатор", "Java Spring Cloud", "Роутинг запросов к сервисам")
+    Container(gwAuth, "Аутентификация", "OAuth 2.0 / JWT", "Проверка токенов доступа")
+    Container(gwRate, "Rate Limiting", "Redis + Java", "Ограничение частоты вызовов [NFR-03]")
+    Container(gwLog, "Логирование", "ELK Stack", "Аудит и мониторинг [NFR-08]")
+}
+
+System_Boundary(newServicesBoundary, "Новые сервисы MVP") {
+    Container(depositSvc, "Сервис депозитов", "Java Spring Boot, PostgreSQL", "Заявки, статусы, оркестрация [UC-02, UC-05]")
+    Container(rateSvc, "Сервис ставок", "Python Flask, PostgreSQL", "Расчёт и хранение ставок [UC-01]")
+    Container(queue, "Очередь сообщений", "Kafka / RabbitMQ", "Асинхронная передача событий [NFR-10]")
+}
+
+System_Boundary(absBoundary, "АБС") {
+    Container(absUI, "Десктоп-клиент", "Delphi", "Рабочее место сотрудников [UC-05, UC-08]")
+    Container(absCore, "Ядро АБС", "PL/SQL процедуры", "Бизнес-логика учёта операций")
+    ContainerDb(absDB, "База данных", "Oracle", "Счета, операции, договоры")
+    Container(absSMS, "Модуль СМС-рассылки", "PL/SQL + External API", "Отправка уведомлений [UC-06]")
+}
+
+System_Ext(telecom, "СМС-шлюз", "Телеком-оператор", "Отправка СМС-сообщений")
+System_Ext(callCenter, "Система КЦ", "Java Spring Boot, React, PostgreSQL", "Обработка заявок с сайта [UC-03, UC-04]")
+
+Rel(client, ibUI, "HTTPS", "Взаимодействие")
+Rel(ibUI, ibAPI, "Внутренний вызов", "")
+Rel(ibAPI, ibDB, "Чтение/Запись", "")
+Rel(ibAPI, ibCache, "Кэширование", "Снижение нагрузки [NFR-02]")
+Rel(ibAPI, ibSMS, "Запрос кода", "Генерация СМС-кода")
+Rel(ibAPI, gwRoute, "REST API", "Все внешние вызовы")
+
+Rel(gwRoute, gwAuth, "Проверка", "Валидация токена")
+Rel(gwRoute, depositSvc, "REST API", "Заявки на депозит")
+Rel(gwRoute, rateSvc, "REST API", "Получение ставок")
+Rel(gwRate, gwRoute, "Применение лимитов", "Защита от перегрузки")
+Rel(gwLog, gwRoute, "Логирование", "Аудит запросов")
+
+Rel(depositSvc, queue, "Событие", "Заявка создана [UC-02]")
+Rel(depositSvc, absCore, "REST API", "Создание депозита [UC-05]")
+Rel(rateSvc, absCore, "REST API", "Получение данных для расчёта")
+Rel(queue, callCenter, "Событие", "Новая заявка [UC-04]")
+Rel(queue, absSMS, "Событие", "Триггер уведомления [UC-06]")
+
+Rel(absCore, absDB, "Чтение/Запись", "PL/SQL процедуры")
+Rel(absUI, absCore, "Внутренний вызов", "Работа оператора")
+Rel(absSMS, telecom, "SMTP/HTTP", "Отправка СМС [UC-06]")
+@enduml
