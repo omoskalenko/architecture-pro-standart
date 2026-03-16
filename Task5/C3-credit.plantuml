@@ -1,0 +1,52 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Диаграмма компонентов - Кредитный процесс
+
+Person(client, "Клиент", "Заявитель на кредит")
+Person(backOffice, "Бэк-офис кредитов", "50 сотрудников")
+Person(manager, "Менеджер отделения", "Фронт-офис")
+
+Container_Boundary(creditConveyor, "Кредитный конвейер (Camunda, Oracle, Java)") {
+    Component(apiController, "CreditAPIController", "Spring REST Controller", "Приём заявок из каналов [UC-02, UC-03]")
+    Component(processEngine, "BPM Process Engine", "Camunda", "Оркестрация процесса кредитования")
+    Component(taskService, "TaskManagementService", "Java", "Распределение задач сотрудникам")
+    ComponentDb(conveyorDB, "Oracle DB", "Oracle", "Заявки, статусы, история решений")
+    Component(scoringConnector, "ScoringConnector", "Java", "Интеграция с системой скоринга [UC-04]")
+    Component(absConnector, "ABSConnector", "Java", "Интеграция с АБС для зачисления средств")
+    Component(notificationService, "NotificationService", "Java", "Отправка СМС-уведомлений [UC-07]")
+    Component(branchInterface, "BranchInterface", "REST API", "Доступ для менеджеров отделений [UC-06]")
+}
+
+System_Ext(internetBank, "Интернет-банк", "ASP.NET MVC 4.5", "Онлайн-заявки")
+System_Ext(website, "Сайт банка", "PHP, React.js", "Онлайн-заявки")
+System_Ext(scoring, "Система скоринга", "Python Flask, PostgreSQL", "Кредитный рейтинг")
+System_Ext(abs, "АБС", "Delphi, Oracle", "Зачисление средств")
+System_Ext(telecom, "СМС-шлюз", "Телеком-оператор", "Уведомления")
+
+Rel(client, internetBank, "HTTPS", "Подача заявки [UC-02]")
+Rel(client, website, "HTTPS", "Подача заявки [UC-03]")
+Rel(internetBank, apiController, "REST API", "POST /credit-application")
+Rel(website, apiController, "REST API", "POST /credit-application")
+
+Rel(apiController, processEngine, "Запуск процесса", "BPMN процесс")
+Rel(processEngine, taskService, "Создание задач", "Для бэк-офиса")
+Rel(processEngine, scoringConnector, "Вызов", "Запрос скоринга [UC-04]")
+Rel(scoringConnector, scoring, "REST API", "Получение рейтинга")
+
+Rel(taskService, backOffice, "UI", "Рабочее место сотрудника [UC-08]")
+Rel(branchInterface, manager, "UI", "Просмотр заявки [UC-06]")
+
+Rel(processEngine, absConnector, "Вызов", "Зачисление при одобрении")
+Rel(absConnector, abs, "REST API", "Перевод средств")
+Rel(processEngine, notificationService, "Триггер", "Смена статуса")
+Rel(notificationService, telecom, "SMTP/HTTP", "СМС клиенту [UC-07]")
+
+UpdateRelStyle(client, internetBank, $textColor="#0066CC", $lineColor="#0066CC")
+UpdateRelStyle(processEngine, scoringConnector, $textColor="#FF6600", $lineColor="#FF6600", $text="< 2 сек\n[NFR-01]")
+UpdateRelStyle(processEngine, absConnector, $textColor="#009900", $lineColor="#009900", $text="Только при одобрении")
+
+UpdateElementStyle(processEngine, $bgColor="#90EE90")
+UpdateElementStyle(conveyorDB, $bgColor="#FFB6C1")
+
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Диаграмма контекста - Система открытия депозитов (MVP)
+
+Person(client, "Клиент", "Физическое лицо, желающее открыть депозит")
+Person_Ext(telecom, "Телеком-оператор", "СМС-шлюз для уведомлений")
+Person_Ext(partnerCC, "Партнёрский кол-центр", "Внешняя система обработки обращений")
+
+System_Boundary(bank, "Банк «Стандарт»") {
+    System(website, "Сайт банка", "PHP, React.js", "Маркетинг и подача предварительных заявок")
+    System(internetBank, "Интернет-банк", "ASP.NET MVC 4.5, MS SQL", "Онлайн-банкинг для существующих клиентов")
+    System(callCenter, "Система кол-центра", "Java Spring Boot, React, PostgreSQL", "Обработка обращений клиентов")
+    System(abs, "АБС", "Delphi, Oracle, PL/SQL", "Учёт операций, бухгалтерия, договоры")
+    
+    System_Boundary(newServices, "Новые сервисы MVP") {
+        System(depositService, "Сервис депозитов", "Java Spring Boot, PostgreSQL", "Управление заявками на депозиты")
+        System(rateService, "Сервис ставок", "Python Flask, PostgreSQL", "Расчёт и хранение ставок по депозитам")
+        System(apiGateway, "API Gateway", "Java Spring Cloud", "Защита и маршрутизация запросов")
+    }
+    
+    System(backOffice, "Рабочее место бэк-офиса", "АБС Клиент", "Подтверждение условий депозита")
+    System(branch, "Рабочее место отделения", "АБС Клиент", "Идентификация и подписание документов")
+}
+
+Rel(client, website, "HTTPS", "Подача предварительной заявки [UC-03]")
+Rel(client, internetBank, "HTTPS", "Просмотр и подача заявки [UC-01, UC-02]")
+Rel(client, branch, "Визит", "Идентификация и подписание [UC-07]")
+
+Rel(website, callCenter, "Заявка", "Передача данных клиента")
+Rel(internetBank, apiGateway, "REST API", "Запросы к сервисам")
+Rel(apiGateway, depositService, "REST API", "Маршрутизация")
+Rel(apiGateway, rateService, "REST API", "Получение ставок")
+Rel(depositService, abs, "REST API", "Создание депозита [UC-05]")
+Rel(abs, telecom, "SMTP/HTTP", "СМС-уведомления [UC-06]")
+Rel(backOffice, abs, "Direct DB", "Управление ставками")
+Rel(branch, abs, "Direct DB", "Загрузка документов [UC-08]")
+Rel(partnerCC, callCenter, "Эскалация", "Передача обращений")
+
+@enduml

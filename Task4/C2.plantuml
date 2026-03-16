@@ -1,0 +1,43 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Диаграмма компонентов - Сервис ставок с интеграцией кол-центра
+
+Person_Ext(partnerCC, "Партнёрский кол-центр")
+Person(operator, "Оператор кол-центра")
+Person(backOffice, "Менеджер бэк-офиса")
+
+Container_Boundary(rateService, "Сервис ставок (Python Flask)") {
+    Component(rateAPI, "Rate API Controller", "Flask REST API", "Endpoints для получения ставок")
+    Component(rateCore, "Rate Calculation Engine", "Python", "Расчёт ставок на основе правил")
+    Component(rateRepo, "Rate Repository", "SQLAlchemy", "Доступ к данным ставок")
+    ComponentDb(rateDB, "PostgreSQL DB", "PostgreSQL", "Текущие и исторические ставки")
+    Component(fileGen, "File Generator", "Python", "Генерация CSV/XML файлов")
+    Component(sftpClient, "SFTP Client", "Paramiko", "Загрузка файлов на SFTP-сервер")
+    Component(auditLog, "Audit Logger", "Python", "Логирование изменений ставок")
+    Component(cache, "Rate Cache", "Redis", "Кэширование для быстрого доступа")
+}
+
+System(callCenter, "Система кол-центра", "Java Spring Boot, React", "Внутренняя CRM")
+System(sftpServer, "SFTP-сервер банка", "Linux, OpenSSH", "Файловый обмен")
+System(abs, "АБС", "Delphi, Oracle", "Исторические данные")
+
+Rel(operator, callCenter, "HTTPS", "Запрос ставок через UI")
+Rel(callCenter, rateAPI, "REST API GET /rates", "Получение актуальных ставок [UC-01]")
+Rel(rateAPI, cache, "Чтение", "Быстрый ответ [NFR-01]")
+Rel(rateAPI, rateCore, "Вызов", "Расчёт если нет в кэше")
+Rel(rateCore, rateRepo, "SQLAlchemy", "Чтение из БД")
+Rel(rateRepo, rateDB, "SQL", "Хранение данных")
+
+Rel(backOffice, rateAPI, "REST API POST /rates", "Обновление ставок [UC-04]")
+Rel(rateAPI, auditLog, "Запись", "Аудит изменений [NFR-05]")
+Rel(rateAPI, cache, "Инвалидация", "Обновление кэша")
+
+Rel(fileGen, rateRepo, "Чтение", "Получение всех активных ставок")
+Rel(fileGen, sftpClient, "Передача", "Готовый файл")
+Rel(sftpClient, sftpServer, "SFTP + PGP", "Загрузка файла [UC-03]")
+Rel(sftpServer, partnerCC, "SFTP Download", "Получение файла [UC-02]")
+
+Rel(rateCore, abs, "JDBC", "Исторические данные для аналитики")
+
+@enduml
